@@ -5,7 +5,6 @@ import { AuthedRequest, auth } from "../middleware/auth.js";
 import { allowRoles } from "../middleware/allowRoles.js";
 import { uploadProductImage } from "../middleware/upload.js";
 import { uuid } from "../utils/uuid.js";
-import { ENV } from "../config/env.js";
 import crypto from "crypto";
 import { uploadToVercelBlob } from "../utils/blob.js";
 
@@ -46,7 +45,7 @@ router.post(
   "/products",
   auth,
   allowRoles("admin"),
-  uploadProductImage.single("image"), // memoryStorage
+  uploadProductImage.single("image"),
   async (req: AuthedRequest, res) => {
     const db = getDb();
     const body = req.body as any;
@@ -79,11 +78,9 @@ router.post(
     // Upload ke Vercel Blob jika ada file
     let image_url: string | null = null;
     if (req.file?.buffer) {
-      const safeName = req.file.originalname.replace(/\s+/g, "_");
-      const fileName = `prod_${Date.now()}_${crypto
-        .randomBytes(4)
-        .toString("hex")}_${safeName}`;
-      image_url = await uploadToVercelBlob(req.file.buffer, fileName);
+      const safe = req.file.originalname.replace(/\s+/g, "_");
+      const filename = `prod_${Date.now()}_${crypto.randomBytes(4).toString("hex")}_${safe}`;
+      image_url = await uploadToVercelBlob(req.file.buffer, filename);
     }
 
     const now = new Date().toISOString();
@@ -144,16 +141,12 @@ router.patch(
 
     // Upload gambar baru (optional)
     if (req.file?.buffer) {
-      const safeName = req.file.originalname.replace(/\s+/g, "_");
-      const fileName = `prod_${Date.now()}_${crypto
-        .randomBytes(4)
-        .toString("hex")}_${safeName}`;
-      const newUrl = await uploadToVercelBlob(req.file.buffer, fileName);
+      const safe = req.file.originalname.replace(/\s+/g, "_");
+      const filename = `prod_${Date.now()}_${crypto.randomBytes(4).toString("hex")}_${safe}`;
+      const newUrl = await uploadToVercelBlob(req.file.buffer, filename);
 
       ($set as any).image_url = newUrl;
-      const images = Array.isArray(existed.images)
-        ? existed.images.slice()
-        : [];
+      const images = Array.isArray(existed.images) ? existed.images.slice() : [];
       if (!images.includes(newUrl)) images.push(newUrl);
       ($set as any).images = images;
     }

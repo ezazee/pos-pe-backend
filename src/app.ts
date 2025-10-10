@@ -28,10 +28,10 @@ app.use((req, _res, next) => {
 });
 
 // STATIC (optional)
-app.use(
+/* app.use(
   "/uploads",
   express.static(path.resolve(__dirname, "..", "..", ENV.UPLOAD_DIR))
-);
+); */
 
 // HEALTH
 app.get("/", (_req, res) => res.send("OK"));
