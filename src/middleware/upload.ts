@@ -1,7 +1,7 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { ENV } from '../config/env';
+import { ENV } from '../config/env.js';
 import { Request } from 'express';
 import mime from 'mime-types';
 

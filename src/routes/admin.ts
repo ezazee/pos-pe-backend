@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { getDb } from "../db/mongo";
-import { auth, AuthedRequest } from "../middleware/auth";
-import { allowRoles } from "../middleware/allowRoles";
-import { seedAll } from "../seed/seed";
+import { getDb } from "../db/mongo.js";
+import { auth, AuthedRequest } from "../middleware/auth.js";
+import { allowRoles } from "../middleware/allowRoles.js";
+import { seedAll } from "../seed/seed.js";
 
 const router = Router();
 

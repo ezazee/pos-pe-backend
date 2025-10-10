@@ -1,8 +1,10 @@
 // src/server.ts
-import { app } from "./app";
-import { ENV } from "./config/env";
-import { connectMongo, closeMongo } from "./db/mongo";
-import { seedAll } from "./seed/seed";
+
+import { app } from "./app.js";
+import { ENV } from "./config/env.js";
+import { closeMongo, connectMongo } from "./db/mongo.js";
+import { seedAll } from "./seed/seed.js";
+
 
 async function bootstrap() {
   // Koneksi & seed hanya saat lokal (bukan Vercel)

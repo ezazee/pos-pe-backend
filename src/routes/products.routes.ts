@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { getDb } from "../db/mongo";
-import { Product } from "../types/models";
-import { AuthedRequest, auth } from "../middleware/auth";
-import { allowRoles } from "../middleware/allowRoles";
-import { uploadProductImage } from "../middleware/upload";
-import { uuid } from "../utils/uuid";
-import { ENV } from "../config/env";
+import { getDb } from "../db/mongo.js";
+import { Product } from "../types/models.js";
+import { AuthedRequest, auth } from "../middleware/auth.js";
+import { allowRoles } from "../middleware/allowRoles.js";
+import { uploadProductImage } from "../middleware/upload.js";
+import { uuid } from "../utils/uuid.js";
+import { ENV } from "../config/env.js";
 
 const router = Router();
 

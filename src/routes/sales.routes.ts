@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { getDb } from '../db/mongo';
-import { AuthedRequest, auth } from '../middleware/auth';
-import { Product, Sale, SaleItem } from '../types/models';
-import { fmtDateJakarta, fmtTimeJakarta, nowJakartaDate, roundToNearest100, yearMonth } from '../utils/time';
-import { uuid } from '../utils/uuid';
+import { getDb } from '../db/mongo.js';
+import { AuthedRequest, auth } from '../middleware/auth.js';
+import { Product, Sale, SaleItem } from '../types/models.js';
+import { fmtDateJakarta, fmtTimeJakarta, nowJakartaDate, roundToNearest100, yearMonth } from '../utils/time.js';
+import { uuid } from '../utils/uuid.js';
 
 const router = Router();
 

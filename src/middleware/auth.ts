@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
-import { getDb } from '../db/mongo';
-import { User } from '../types/models';
-import { verifyToken } from '../utils/jwt';
+import { getDb } from '../db/mongo.js';
+import { User } from '../types/models.js';
+import { verifyToken } from '../utils/jwt.js';
 import jwt from 'jsonwebtoken';
 
 export interface AuthedRequest extends Request {

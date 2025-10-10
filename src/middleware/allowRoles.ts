@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
-import { AuthedRequest } from './auth';
-import { Role } from '../types/models';
+import { AuthedRequest } from './auth.js';
+import { Role } from '../types/models.js';
 
 export function allowRoles(...roles: Role[]) {
   return (req: AuthedRequest, res: Response, next: NextFunction) => {

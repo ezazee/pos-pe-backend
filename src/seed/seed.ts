@@ -1,8 +1,8 @@
 // src/seed/index.ts
 import { Db } from 'mongodb';
 import bcrypt from 'bcryptjs';
-import { uuid } from '../utils/uuid';
-import { Product } from '../types/models';
+import { uuid } from '../utils/uuid.js';
+import { Product } from '../types/models.js';
 
 type Role = 'admin' | 'cashier' | 'finance';
 

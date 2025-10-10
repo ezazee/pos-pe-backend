@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { ENV } from '../config/env';
+import { ENV } from '../config/env.js';
 
 export function signToken(sub: string, minutes = 480) {
   const exp = Math.floor(Date.now() / 1000) + minutes * 60;

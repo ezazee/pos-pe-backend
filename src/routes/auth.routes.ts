@@ -1,9 +1,9 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { getDb } from '../db/mongo';
-import { User, TokenResponse } from '../types/models';
-import { signToken } from '../utils/jwt';
-import { AuthedRequest, auth } from '../middleware/auth';
+import { getDb } from '../db/mongo.js';
+import { User, TokenResponse } from '../types/models.js';
+import { signToken } from '../utils/jwt.js';
+import { AuthedRequest, auth } from '../middleware/auth.js';
 
 const router = Router();
 
