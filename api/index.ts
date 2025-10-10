@@ -1,7 +1,7 @@
 // backend-express/api/index.ts
 import serverless from "serverless-http";
-import { connectMongo } from "../db/mongo";
-import { app } from "../app";
+import { connectMongo } from "../src/db/mongo.js";
+import { app } from "../src/app.js";
 
 let ready: Promise<void> | null = null;
 async function ensureReady() {

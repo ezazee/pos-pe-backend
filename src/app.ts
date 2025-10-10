@@ -1,11 +1,12 @@
 // src/app.ts
-import express from "express";
-import cors from "cors";
-import morgan from "morgan";
-import path from "path";
-import api from "./routes";
-import adminRouter from "./routes/admin";
-import { ENV } from "./config/env";
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import path from 'path';
+
+import api from './routes/index.js';         // ✅ wajib cantumkan file + .js
+import adminRouter from './routes/admin.js'; // ✅ sesuaikan: admin.ts => admin.js
+import { ENV } from './config/env.js';       // ✅ cantumkan .js juga
 
 export const app = express();
 
