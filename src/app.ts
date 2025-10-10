@@ -1,12 +1,12 @@
 // src/app.ts
-import express from 'express';
-import cors from 'cors';
-import morgan from 'morgan';
-import path from 'path';
+import express from "express";
+import cors from "cors";
+import morgan from "morgan";
+import path from "path";
 
-import api from './routes/index.js';         // ✅ wajib cantumkan file + .js
-import adminRouter from './routes/admin.js'; // ✅ sesuaikan: admin.ts => admin.js
-import { ENV } from './config/env.js';       // ✅ cantumkan .js juga
+import api from "./routes/index.js";
+import adminRouter from "./routes/admin.js";
+import { ENV } from "./config/env.js";
 
 export const app = express();
 
@@ -19,16 +19,28 @@ app.use(
 );
 app.use(morgan("dev"));
 
-// normalisasi double slash
+// normalisasi // (kadang diperlukan saat lewat proxy)
 app.use((req, _res, next) => {
   if (req.url.includes("//")) req.url = req.url.replace(/\/{2,}/g, "/");
   next();
 });
 
-// NOTE: di Vercel basePath harus '/' karena prefix '/api' sudah dipangkas Vercel
-const BASE = process.env.VERCEL === "1" ? "/" : "/api";
+// HANYA untuk lokal: serve uploads (Vercel serverless storage tidak persisten)
+if (process.env.VERCEL !== "1") {
+  app.use("/uploads", express.static(path.resolve(ENV.UPLOAD_DIR)));
+}
 
-app.use("/uploads", express.static(path.resolve(ENV.UPLOAD_DIR)));
+// di Vercel, prefix /api sudah dipangkas, jadi mount di '/'
+// di lokal, tetap '/api'
+const BASE = process.env.VERCEL === "1" ? "/" : "/api";
 
 app.use(BASE, api);
 app.use(BASE, adminRouter);
+
+// health check (mudah debug)
+app.get(
+  process.env.VERCEL === "1" ? "/healthz" : "/api/healthz",
+  (_req, res) => {
+    res.json({ ok: true, vercel: process.env.VERCEL === "1" });
+  }
+);

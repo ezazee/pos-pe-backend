@@ -1,16 +1,24 @@
-// backend-express/api/index.ts
+// api/index.ts
 import serverless from "serverless-http";
-import { connectMongo } from "../src/db/mongo.js";
 import { app } from "../src/app.js";
+import { connectMongo } from "../src/db/mongo.js";
 
-let ready: Promise<void> | null = null;
+let once: Promise<void> | null = null;
 async function ensureReady() {
-  if (!ready) ready = connectMongo().then(() => undefined);
-  await ready;
+  if (!once) {
+    once = connectMongo().then(() => undefined);
+  }
+  await once;
 }
 
 export default async function handler(req: any, res: any) {
-  await ensureReady();
-  const wrapped = serverless(app);
-  return wrapped(req, res);
+  try {
+    await ensureReady();
+    const wrapped = serverless(app);
+    return wrapped(req, res);
+  } catch (err) {
+    console.error("Serverless handler error:", err);
+    res.statusCode = 500;
+    res.end("Internal Error");
+  }
 }
