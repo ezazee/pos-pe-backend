@@ -4,13 +4,13 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "src",              // ⬅️ ubah: hanya folder src
     "strict": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src","api","scripts"],
-  "exclude": ["node_modules","dist"]
+  "include": ["src"],              // ⬅️ hanya compile src
+  "exclude": ["node_modules", "dist"]
 }
