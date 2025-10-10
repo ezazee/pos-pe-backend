@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { MongoClient } from 'mongodb';
-import { seedAll } from '../src/seed/seed';
+import { seedAll } from '../src/seed/seed.js';
 import process from 'node:process';
 
 const { MONGO_URL, DB_NAME } = process.env as Record<string, string>;
