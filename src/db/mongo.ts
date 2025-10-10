@@ -1,18 +1,16 @@
-// src/db/mongo.ts
-import { MongoClient } from "mongodb";
+import { MongoClient, Db } from "mongodb";
 import { ENV } from "../config/env.js";
 
 let client: MongoClient | null = null;
-
-export function getClient() {
-  return client;
-}
+let db: Db | null = null;
 
 export async function connectMongo(abortSignal?: AbortSignal) {
+  if (db) return db;
   if (!ENV.MONGO_URL) throw new Error("MONGO_URL not set");
-  if (client) return client;
 
-  client = new MongoClient(ENV.MONGO_URL, { serverSelectionTimeoutMS: 5000 });
+  client = new MongoClient(ENV.MONGO_URL, {
+    serverSelectionTimeoutMS: 5000,
+  });
 
   if (abortSignal) {
     abortSignal.addEventListener("abort", () => {
@@ -23,19 +21,29 @@ export async function connectMongo(abortSignal?: AbortSignal) {
   }
 
   await client.connect();
-  return client;
+  db = client.db(ENV.DB_NAME);
+  return db;
 }
 
-export function getDb(name = ENV.DB_NAME) {
-  if (!client) {
-    throw new Error("MongoClient not connected. Call connectMongo() first.");
-  }
-  return client.db(name);
+export function getDb(): Db {
+  if (!db) throw new Error("Mongo not connected");
+  return db;
+}
+
+export function isDbReady() {
+  return !!db;
+}
+
+/** pastikan DB siap; kalau belum, coba konek sekali lagi */
+export async function ensureDb() {
+  if (db) return db;
+  return connectMongo();
 }
 
 export async function closeMongo() {
   if (client) {
     await client.close().catch(() => {});
     client = null;
+    db = null;
   }
 }

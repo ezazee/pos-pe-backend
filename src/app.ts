@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { ENV } from "./config/env.js";
 import api from "./routes/index.js";
+import { dbReady } from './middleware/dbReady.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,7 +39,7 @@ app.get("/kaithheathcheck", (_req, res) => res.send("OK"));
 app.get("/api/healthz", (_req, res) => res.json({ ok: true }));
 
 // API
-app.use("/api", api);
+app.use("/api", dbReady, api);
 
 // 404
 app.use((req, res) =>
