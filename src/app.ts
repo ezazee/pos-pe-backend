@@ -10,6 +10,11 @@ import { ENV } from "./config/env.js";
 
 export const app = express();
 
+
+app.get('/', (_req, res) => res.send('OK'));
+app.get('/kaithheathcheck', (_req, res) => res.send('OK')); // Leapcell ping ke sini
+app.get('/api/healthz', (_req, res) => res.json({ ok: true }));
+
 app.use(express.json({ limit: "1mb" }));
 app.use(
   cors({

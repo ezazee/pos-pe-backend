@@ -1,27 +1,33 @@
-// src/server.ts (hanya untuk lokal—Vercel tidak pakai file ini)
 import { app } from "./app.js";
-import { ENV } from "./config/env.js";
-import { connectMongo, closeMongo } from "./db/mongo.js";
-// import { seedAll } from './seed/seed.js'; // kalau mau seed lokal
+import { connectMongo } from "./db/mongo.js";
 
-async function bootstrap() {
-  await connectMongo();
-  // await seedAll(db); // optional: hanya lokal
+process.on("unhandledRejection", (e) =>
+  console.error("UNHANDLED REJECTION:", e)
+);
+process.on("uncaughtException", (e) => console.error("UNCAUGHT EXCEPTION:", e));
 
-  const server = app.listen(ENV.PORT, () => {
-    console.log(`API listening on http://localhost:${ENV.PORT}`);
+const PORT = Number(process.env.PORT || 4000);
+const HOST = process.env.HOST || "0.0.0.0";
+
+async function main() {
+  console.log("Boot…", {
+    PORT,
+    HOST,
+    HAS_MONGO_URL: !!process.env.MONGO_URL,
+    DB_NAME: process.env.DB_NAME,
   });
 
-  const shutdown = async () => {
-    server.close(async () => {
-      await closeMongo();
-      process.exit(0);
-    });
-  };
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+  try {
+    await connectMongo();
+    console.log("Mongo connected");
+  } catch (err) {
+    console.error("Mongo connection FAILED:", err);
+    // sementara biarkan server tetap hidup agar healthcheck jalan
+  }
+
+  app.listen(PORT, HOST, () => {
+    console.log(`API listening at http://${HOST}:${PORT}`);
+  });
 }
-bootstrap().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+
+main().catch((err) => console.error("FATAL bootstrap:", err));
