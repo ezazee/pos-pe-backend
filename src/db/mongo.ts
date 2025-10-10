@@ -1,46 +1,41 @@
-import { MongoClient, Db } from "mongodb";
+// src/db/mongo.ts
+import { MongoClient } from "mongodb";
 import { ENV } from "../config/env.js";
 
 let client: MongoClient | null = null;
-let db: Db | null = null;
 
-/**
- * Connect ke MongoDB dan cache koneksi agar tidak reconnect setiap invoke
- */
-export async function connectMongo(): Promise<Db> {
-  if (db) return db; // sudah connect, pakai cache
+export function getClient() {
+  return client;
+}
 
-  // Cache global untuk serverless (agar survive antar invoke)
-  const globalAny = globalThis as any;
-  if (globalAny.__mongoDb) return globalAny.__mongoDb as Db;
+export async function connectMongo(abortSignal?: AbortSignal) {
+  if (!ENV.MONGO_URL) throw new Error("MONGO_URL not set");
+  if (client) return client;
 
-  client = new MongoClient(ENV.MONGO_URL);
+  client = new MongoClient(ENV.MONGO_URL, { serverSelectionTimeoutMS: 5000 });
+
+  if (abortSignal) {
+    abortSignal.addEventListener("abort", () => {
+      try {
+        client?.close().catch(() => {});
+      } catch {}
+    });
+  }
+
   await client.connect();
-  db = client.db(ENV.DB_NAME);
-
-  globalAny.__mongoClient = client;
-  globalAny.__mongoDb = db;
-
-  console.log("✅ MongoDB connected");
-  return db;
+  return client;
 }
 
-/**
- * Ambil instance DB yang sudah connect
- */
-export function getDb(): Db {
-  if (!db) throw new Error("Mongo not connected");
-  return db;
+export function getDb(name = ENV.DB_NAME) {
+  if (!client) {
+    throw new Error("MongoClient not connected. Call connectMongo() first.");
+  }
+  return client.db(name);
 }
 
-/**
- * Tutup koneksi (biasanya tidak dipakai di serverless)
- */
 export async function closeMongo() {
   if (client) {
-    await client.close();
+    await client.close().catch(() => {});
     client = null;
-    db = null;
-    console.log("🧹 MongoDB closed");
   }
 }

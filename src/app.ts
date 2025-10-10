@@ -1,19 +1,15 @@
-// src/app.ts
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import path from "path";
-
-import api from "./routes/index.js";
-import adminRouter from "./routes/admin.js";
+import { fileURLToPath } from "url";
 import { ENV } from "./config/env.js";
+import api from "./routes/index.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const app = express();
-
-
-app.get('/', (_req, res) => res.send('OK'));
-app.get('/kaithheathcheck', (_req, res) => res.send('OK')); // Leapcell ping ke sini
-app.get('/api/healthz', (_req, res) => res.json({ ok: true }));
 
 app.use(express.json({ limit: "1mb" }));
 app.use(
@@ -24,28 +20,27 @@ app.use(
 );
 app.use(morgan("dev"));
 
-// normalisasi // (kadang diperlukan saat lewat proxy)
+// normalize // double slash (kadang reverse proxy bikin //)
 app.use((req, _res, next) => {
   if (req.url.includes("//")) req.url = req.url.replace(/\/{2,}/g, "/");
   next();
 });
 
-// HANYA untuk lokal: serve uploads (Vercel serverless storage tidak persisten)
-if (process.env.VERCEL !== "1") {
-  app.use("/uploads", express.static(path.resolve(ENV.UPLOAD_DIR)));
-}
+// STATIC (optional)
+app.use(
+  "/uploads",
+  express.static(path.resolve(__dirname, "..", "..", ENV.UPLOAD_DIR))
+);
 
-// di Vercel, prefix /api sudah dipangkas, jadi mount di '/'
-// di lokal, tetap '/api'
-const BASE = process.env.VERCEL === "1" ? "/" : "/api";
+// HEALTH
+app.get("/", (_req, res) => res.send("OK"));
+app.get("/kaithheathcheck", (_req, res) => res.send("OK"));
+app.get("/api/healthz", (_req, res) => res.json({ ok: true }));
 
-app.use(BASE, api);
-app.use(BASE, adminRouter);
+// API
+app.use("/api", api);
 
-// health check (mudah debug)
-app.get(
-  process.env.VERCEL === "1" ? "/healthz" : "/api/healthz",
-  (_req, res) => {
-    res.json({ ok: true, vercel: process.env.VERCEL === "1" });
-  }
+// 404
+app.use((req, res) =>
+  res.status(404).json({ message: "Not Found", path: req.url })
 );

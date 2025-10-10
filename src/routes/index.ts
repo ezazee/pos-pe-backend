@@ -9,4 +9,5 @@ api.use(authRoutes);
 api.use(productsRoutes);
 api.use(salesRoutes);
 
+
 export default api;
