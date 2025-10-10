@@ -10,6 +10,7 @@ export const ENV = {
   MONGO_URL: process.env.MONGO_URL || "",
   DB_NAME: process.env.DB_NAME || "peskinpro_pos",
   UPLOAD_DIR: process.env.UPLOAD_DIR || "uploads",
-  JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || 'pe-skinpro-secret-key-2025',
-  BASE_URL: process.env.BASE_URL || '',
+  JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "pe-skinpro-secret-key-2025",
+  BASE_URL: process.env.BASE_URL || "",
+  BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN!,
 };

@@ -6,6 +6,8 @@ import { allowRoles } from "../middleware/allowRoles.js";
 import { uploadProductImage } from "../middleware/upload.js";
 import { uuid } from "../utils/uuid.js";
 import { ENV } from "../config/env.js";
+import crypto from "crypto";
+import { uploadToVercelBlob } from "../utils/blob.js";
 
 const router = Router();
 
@@ -39,11 +41,12 @@ router.get("/products", auth, async (req: AuthedRequest, res) => {
   return res.json({ products, total });
 });
 
+/** POST /api/products  (create) */
 router.post(
   "/products",
   auth,
-  allowRoles("admin"), // hanya admin boleh tambah produk
-  uploadProductImage.single("image"),
+  allowRoles("admin"),
+  uploadProductImage.single("image"), // memoryStorage
   async (req: AuthedRequest, res) => {
     const db = getDb();
     const body = req.body as any;
@@ -65,7 +68,7 @@ router.post(
         .json({ message: "sku, name, price, stock_qty wajib diisi" });
     }
 
-    // Cek sku unik (opsional)
+    // SKU unik
     const exists = await db
       .collection<Product>("products")
       .findOne({ sku }, { projection: { _id: 0 } });
@@ -73,11 +76,14 @@ router.post(
       return res.status(409).json({ message: "SKU already exists" });
     }
 
-    // Build image_url jika ada file
+    // Upload ke Vercel Blob jika ada file
     let image_url: string | null = null;
-    if (req.file) {
-      // file disimpan di /uploads/products/<filename>
-      image_url = `${ENV.BASE_URL}/uploads/products/${req.file.filename}`;
+    if (req.file?.buffer) {
+      const safeName = req.file.originalname.replace(/\s+/g, "_");
+      const fileName = `prod_${Date.now()}_${crypto
+        .randomBytes(4)
+        .toString("hex")}_${safeName}`;
+      image_url = await uploadToVercelBlob(req.file.buffer, fileName);
     }
 
     const now = new Date().toISOString();
@@ -96,8 +102,8 @@ router.post(
       stock_qty,
       created_at: now,
       updated_at: now,
-      image_url, // NEW
-      images: image_url ? [image_url] : [], // optional multi
+      image_url,
+      images: image_url ? [image_url] : [],
     };
 
     await db.collection<Product>("products").insertOne({ ...product });
@@ -105,18 +111,17 @@ router.post(
   }
 );
 
-// ====== EDIT PRODUCT (PATCH /api/products/:id) ======
+/** PATCH /api/products/:id (edit) */
 router.patch(
   "/products/:id",
   auth,
   allowRoles("admin"),
-  uploadProductImage.single("image"), // optional
+  uploadProductImage.single("image"), // memoryStorage
   async (req: AuthedRequest, res) => {
     const db = getDb();
     const coll = db.collection<Product>("products");
     const id = req.params.id;
 
-    // produk harus ada
     const existed = await coll.findOne({ id }, { projection: { _id: 0 } });
     if (!existed) return res.status(404).json({ message: "Product not found" });
 
@@ -125,7 +130,6 @@ router.patch(
       updated_at: new Date().toISOString(),
     } as any;
 
-    // set hanya field yang dikirim
     if (typeof b.sku !== "undefined") $set.sku = String(b.sku || "").trim();
     if (typeof b.name !== "undefined") $set.name = String(b.name || "").trim();
     if (typeof b.category !== "undefined") $set.category = b.category || null;
@@ -138,13 +142,15 @@ router.patch(
       $set.is_active = String(b.is_active).toLowerCase() !== "false";
     }
 
-    // gambar baru (opsional)
-    if (req.file) {
-      const newUrl = `${ENV.BASE_URL}/uploads/products/${req.file.filename}`;
-      // ganti thumbnail utama
-      ($set as any).image_url = newUrl;
+    // Upload gambar baru (optional)
+    if (req.file?.buffer) {
+      const safeName = req.file.originalname.replace(/\s+/g, "_");
+      const fileName = `prod_${Date.now()}_${crypto
+        .randomBytes(4)
+        .toString("hex")}_${safeName}`;
+      const newUrl = await uploadToVercelBlob(req.file.buffer, fileName);
 
-      // update array images (append unik)
+      ($set as any).image_url = newUrl;
       const images = Array.isArray(existed.images)
         ? existed.images.slice()
         : [];
@@ -152,7 +158,6 @@ router.patch(
       ($set as any).images = images;
     }
 
-    // validasi ringan
     if (typeof $set.price !== "undefined" && !Number.isFinite($set.price)) {
       return res.status(400).json({ message: "price harus number" });
     }
@@ -169,7 +174,7 @@ router.patch(
   }
 );
 
-// ====== DELETE PRODUCT (DELETE /api/products/:id) ======
+/** DELETE /api/products/:id */
 router.delete(
   "/products/:id",
   auth,
@@ -182,37 +187,8 @@ router.delete(
     const existed = await coll.findOne({ id }, { projection: { _id: 0 } });
     if (!existed) return res.status(404).json({ message: "Product not found" });
 
-    // hapus dokumen
+    // Hapus dokumen (blob tidak kita hapus – opsional)
     await coll.deleteOne({ id });
-
-    // (opsional) coba hapus file lokal jika image_url menunjuk ke /uploads/products
-    try {
-      const urls = [
-        ...(Array.isArray(existed.images) ? existed.images : []),
-        ...(existed.image_url ? [existed.image_url] : []),
-      ];
-      const localPaths = urls
-        .filter(
-          (u) => typeof u === "string" && u.includes("/uploads/products/")
-        )
-        .map((u) => u.split("/uploads/products/")[1])
-        .filter(Boolean);
-
-      // gunakan fs tanpa memblok; abaikan error bila file tak ada
-      const fs = await import("fs");
-      const path = await import("path");
-      for (const fname of localPaths) {
-        const p = path.join(
-          process.cwd(),
-          "uploads",
-          "products",
-          fname as string
-        );
-        fs.promises.unlink(p).catch(() => {});
-      }
-    } catch (_) {
-      /* ignore */
-    }
 
     return res.json({ ok: true });
   }
