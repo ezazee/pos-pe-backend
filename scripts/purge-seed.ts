@@ -6,7 +6,7 @@ import process from 'node:process';
 const { MONGO_URL, DB_NAME } = process.env as Record<string, string>;
 
 async function main() {
-  const args = process.argv.slice(2); // e.g. ["--purge","--seed"]
+  const args = process.argv.slice(2);
   const client = new MongoClient(MONGO_URL);
   await client.connect();
   const db = client.db(DB_NAME);

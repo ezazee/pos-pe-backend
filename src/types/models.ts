@@ -16,14 +16,15 @@ export interface Product {
   sku: string;
   name: string;
   category?: string | null;
-  price: number;
+  price: number; 
+  original_price?: number | null;
   tax_code?: string | null;
   barcode?: string | null;
   is_active: boolean;
   stock_qty: number;
   created_at: string; // ISO
   updated_at: string; // ISO
-  image_url?: string | null; // URL publik untuk 1 gambar utama
+  image_url?: string | null;
   images?: string[];   
 }
 
@@ -31,7 +32,8 @@ export interface SaleItem {
   product_id: string;
   name: string;
   qty: number;
-  price: number;
+  price: number; 
+  original_price?: number | null; 
   line_discount_amount?: number;
   line_total: number;
 }
@@ -44,6 +46,7 @@ export interface Sale {
   branch_id?: string | null; // default JKT-01
   cashier_id: string;
   cashier_name: string;
+  customer_name?: string;
   items: SaleItem[];
   subtotal: number;
   discount_amount: number;

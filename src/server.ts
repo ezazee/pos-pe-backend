@@ -1,7 +1,7 @@
 import { app } from "./app.js";
 import { ENV } from "./config/env.js";
 import { connectMongo, closeMongo } from "./db/mongo.js";
-// import { seedAll } from './seed/seed.js'; // aktifkan jika perlu
+import { seedAll } from './seed/seed.js'; // aktifkan jika perlu
 
 process.on("unhandledRejection", (e) =>
   console.error("UNHANDLED_REJECTION", e)
