@@ -57,14 +57,14 @@ router.post("/sales", auth, async (req: AuthedRequest, res) => {
         .json({ message: `Insufficient stock for ${prod.name}` });
     }
 
-    // Buat objek SaleItem yang lengkap dengan data dari database (termasuk original_price)
     saleItems.push({
       product_id: item.product_id,
       qty: item.qty,
-      name: prod.name, // Ambil nama dari DB
-      price: prod.price, // Ambil harga JUAL dari DB (lebih aman)
-      original_price: prod.original_price, // Ambil harga ASLI dari DB
-      line_total: prod.price * item.qty, // Hitung ulang total baris di backend
+      name: prod.name,
+      sku: prod.sku,
+      price: prod.price,
+      original_price: prod.original_price, 
+      line_total: prod.price * item.qty, 
     });
   }
 
@@ -98,7 +98,7 @@ router.post("/sales", auth, async (req: AuthedRequest, res) => {
     cashier_id: currentUser.id,
     cashier_name: currentUser.name,
     customer_name: body.customer_name,
-    items: saleItems, // ✅ Gunakan array item yang baru dan lengkap
+    items: saleItems,
     subtotal,
     discount_amount,
     tax_amount,

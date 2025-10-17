@@ -31,6 +31,7 @@ export interface Product {
 export interface SaleItem {
   product_id: string;
   name: string;
+  sku: string;
   qty: number;
   price: number; 
   original_price?: number | null; 
