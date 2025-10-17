@@ -6,6 +6,7 @@ import { Product } from "../types/models.js";
 
 type Role = "admin" | "cashier" | "finance";
 
+/** ===== USERS ===== */
 export async function seedUsers(db: Db) {
   const users = db.collection("users");
   const now = new Date().toISOString();
@@ -30,29 +31,29 @@ export async function seedUsers(db: Db) {
   }
 }
 
+/** ===== PRODUCTS (dengan bulk_pricing) ===== */
 export async function seedProducts(db: Db) {
   const products = db.collection<Product>("products");
   if ((await products.countDocuments({})) > 0) return;
 
   const now = new Date();
 
-  // ✅ 1. UPDATE THE HELPER FUNCTION 'P'
-  // Add 'original_price' parameter after 'price'
   const P = (
     sku: string,
     name: string,
     category: string,
-    price: number, // Sale price (e.g., 144,000)
-    original_price: number | null, // Original/strikethrough price (e.g., 160,000)
+    price: number,
+    original_price: number | null,
     stock: number,
-    barcode: string
+    barcode: string,
+    bulk_pricing?: { qty: number; total: number }[]
   ): Product => ({
     id: uuid(),
     sku,
     name,
     category,
     price,
-    original_price, // Add the new field to the object
+    original_price,
     tax_code: null,
     barcode,
     is_active: true,
@@ -61,83 +62,34 @@ export async function seedProducts(db: Db) {
     updated_at: now.toISOString(),
     image_url: null,
     images: [],
+    bulk_pricing, // 👉 paket promo
   });
 
-  // ✅ 2. UPDATE THE PRODUCT DATA
-  // Pass the sale price (144000) first, then the original price (160000)
+  // Paket sesuai gambar: 1=125k, 2=240k, 3=330k, 4=420k, 5=500k
+  const tiers = [
+    { qty: 1, total: 125000 },
+    { qty: 2, total: 240000 },
+    { qty: 3, total: 330000 },
+    { qty: 4, total: 420000 },
+    { qty: 5, total: 500000 },
+  ];
+
   await products.insertMany([
-    P(
-      "T128",
-      "CICA-B5 Refreshing Toner - 100ML",
-      "Facial Care",
-      144000,
-      160000,
-      200,
-      "8990000000001"
-    ),
-    P(
-      "CF311",
-      "Vit C Tone-Up Daycream SPF 50 - 25ML",
-      "Facial Care",
-      144000,
-      160000,
-      200,
-      "8990000000002"
-    ),
-    P(
-      "GF115",
-      "Honey Cleansing Gel - 100ML",
-      "Facial Care",
-      144000,
-      160000,
-      200,
-      "8990000000003"
-    ),
-    P(
-      "GF116",
-      "PE Prebiotic Pore-EX Facial Pad - 30ML",
-      "Facial Care",
-      144000,
-      160000,
-      200,
-      "8990000000004"
-    ),
-    P(
-      "CF298",
-      "Hydro Restorative Cream - 60ML",
-      "Facial Care",
-      144000,
-      160000,
-      200,
-      "8990000000005"
-    ),
-    P(
-      "SF318",
-      "Skin Awakening Glow Serum - 15ML",
-      "Facial Care",
-      144000,
-      160000,
-      200,
-      "8990000000006"
-    ),
-    P(
-      "FB403",
-      "Intimate Feminine Mousse Cleanser - 100ML",
-      "Body Care",
-      144000,
-      160000,
-      200,
-      "8990000000007"
-    ),
+    P("T128", "CICA-B5 Refreshing Toner - 100ML", "Facial Care", 125000, 160000, 200, "8990000000001", tiers),
+    P("CF311","Vit C Tone-Up Daycream SPF 50 - 25ML","Facial Care",125000,160000,200,"8990000000002",tiers),
+    P("GF115","Honey Cleansing Gel - 100ML","Facial Care",125000,160000,200,"8990000000003",tiers),
+    P("GF116","PE Prebiotic Pore-EX Facial Pad - 30ML","Facial Care",125000,160000,200,"8990000000004",tiers),
+    P("CF298","Hydro Restorative Cream - 60ML","Facial Care",125000,160000,200,"8990000000005",tiers),
+    P("SF318","Skin Awakening Glow Serum - 15ML","Facial Care",125000,160000,200,"8990000000006",tiers),
+    P("FB403","Intimate Feminine Mousse Cleanser - 100ML","Body Care",125000,160000,200,"8990000000007",tiers),
   ]);
 
   await products.createIndex?.({ sku: 1 }, { unique: true }).catch(() => {});
-  await products
-    .createIndex?.({ name: "text", sku: "text", barcode: "text" })
-    .catch(() => {});
+  await products.createIndex?.({ name: "text", sku: "text", barcode: "text" }).catch(() => {});
   console.log("Seeded products (7 items)");
 }
 
+/** ===== MASTER SEED (jangan dihapus) ===== */
 export async function seedAll(db: Db) {
   await seedUsers(db);
   await seedProducts(db);

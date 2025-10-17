@@ -10,6 +10,7 @@ import {
   yearMonth,
 } from "../utils/time.js";
 import { uuid } from "../utils/uuid.js";
+import { calcBulkTotal } from "../utils/pricing.js";
 
 const router = Router();
 
@@ -21,7 +22,7 @@ router.post("/sales", auth, async (req: AuthedRequest, res) => {
   }
 
   const body = req.body as {
-    items: SaleItem[];
+    items: { product_id: string; qty: number }[]; // 👉 cukup id & qty dari client
     discount_amount?: number;
     payment_method: string;
     customer_name?: string;
@@ -32,61 +33,54 @@ router.post("/sales", auth, async (req: AuthedRequest, res) => {
   };
 
   const db = getDb();
-  const rawItems = body.items || []; // Ubah nama variabel agar lebih jelas
+  const rawItems = body.items || [];
   const discount_amount = body.discount_amount ?? 0;
 
-  // ✅ LOGIKA BARU: Validasi stok & siapkan item penjualan lengkap
   const productsColl = db.collection<Product>("products");
-  const saleItems: SaleItem[] = []; // Array baru untuk menyimpan item yang sudah divalidasi dan lengkap
+  const saleItems: SaleItem[] = [];
 
   for (const item of rawItems) {
-    // Ambil detail produk lengkap dari database
     const prod = await productsColl.findOne(
       { id: item.product_id },
       { projection: { _id: 0 } }
     );
-
-    if (!prod) {
-      return res
-        .status(404)
-        .json({ message: `Product ${item.product_id} not found` });
-    }
+    if (!prod) return res.status(404).json({ message: `Product ${item.product_id} not found` });
     if (prod.stock_qty < item.qty) {
-      return res
-        .status(400)
-        .json({ message: `Insufficient stock for ${prod.name}` });
+      return res.status(400).json({ message: `Insufficient stock for ${prod.name}` });
     }
+
+    // 👉 hitung total baris pakai paket
+    const line_total = calcBulkTotal(
+      Math.max(1, Number(item.qty || 1)),
+      prod.bulk_pricing,
+      prod.price
+    );
 
     saleItems.push({
-      product_id: item.product_id,
-      qty: item.qty,
+      product_id: prod.id,
+      qty: Math.max(1, Number(item.qty || 1)),
       name: prod.name,
       sku: prod.sku,
       price: prod.price,
-      original_price: prod.original_price, 
-      line_total: prod.price * item.qty, 
+      original_price: prod.original_price,
+      line_total,
     });
   }
 
-  // Hitung total menggunakan `saleItems` yang sudah divalidasi dan harganya dari DB
   const subtotal = saleItems.reduce((a, it) => a + it.line_total, 0);
   if (discount_amount > subtotal) {
     return res.status(400).json({ message: "Discount cannot exceed subtotal" });
   }
   const tax_amount = 0;
-  const grand_total = roundToNearest100(
-    subtotal - discount_amount + tax_amount
-  );
+  const grand_total = roundToNearest100(subtotal - discount_amount + tax_amount);
 
-  // Nomor invoice & waktu Jakarta (tidak berubah)
   const nowJkt = nowJakartaDate();
   const yymm = yearMonth(nowJkt);
   const prefix = `JKT-01-${yymm}-`;
 
   const salesColl = db.collection<Sale>("sales");
   const count =
-    (await salesColl.countDocuments({ invoice_no: { $regex: `^${prefix}` } })) +
-    1;
+    (await salesColl.countDocuments({ invoice_no: { $regex: `^${prefix}` } })) + 1;
   const invoice_no = `${prefix}${String(count).padStart(6, "0")}`;
 
   const sale: Sale = {
@@ -114,7 +108,7 @@ router.post("/sales", auth, async (req: AuthedRequest, res) => {
 
   await salesColl.insertOne({ ...sale });
 
-  // Update stok (gunakan saleItems yang sudah divalidasi)
+  // kurangi stok
   for (const item of saleItems) {
     await productsColl.updateOne(
       { id: item.product_id },
@@ -122,7 +116,6 @@ router.post("/sales", auth, async (req: AuthedRequest, res) => {
     );
   }
 
-  // Audit log (tidak berubah)
   await db.collection("audits").insertOne({
     id: uuid(),
     user_id: currentUser.id,
@@ -135,6 +128,7 @@ router.post("/sales", auth, async (req: AuthedRequest, res) => {
 
   return res.json(sale);
 });
+
 /** GET /api/sales */
 router.get("/sales", auth, async (req: AuthedRequest, res) => {
   const currentUser = req.user!;
