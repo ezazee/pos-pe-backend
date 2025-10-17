@@ -11,27 +11,23 @@ export interface User {
   password_hash?: string; // only in DB
 }
 
-export type BulkTier = {
-  qty: number;  
-  total: number;
-};
-
 export interface Product {
   id: string;
   sku: string;
   name: string;
   category?: string | null;
-  price: number;
+  price: number; 
   original_price?: number | null;
   tax_code?: string | null;
   barcode?: string | null;
   is_active: boolean;
   stock_qty: number;
-  created_at: string;
-  updated_at: string;
+  created_at: string; // ISO
+  updated_at: string; // ISO
   image_url?: string | null;
-  images?: string[];
-  bulk_pricing?: BulkTier[];
+  images?: string[];   
+    bulk_pricing?: { qty: number; total: number }[];
+  bundle_code?: string | null;   // 👉 group promo mix & match
 }
 
 export interface SaleItem {
@@ -39,8 +35,8 @@ export interface SaleItem {
   name: string;
   sku: string;
   qty: number;
-  price: number;
-  original_price?: number | null;
+  price: number; 
+  original_price?: number | null; 
   line_discount_amount?: number;
   line_total: number;
 }
