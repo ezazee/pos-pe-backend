@@ -6,66 +6,121 @@ import { Product } from "../types/models.js";
 
 type Role = "admin" | "cashier" | "finance";
 
-export async function seedUsers(db: Db) {
+async function ensureIndexes(db: Db) {
   const users = db.collection("users");
-  const now = new Date().toISOString();
-  const gen = (name: string, email: string, role: Role, pwd: string) => ({
-    id: uuid(),
-    name,
-    email,
-    role,
-    password_hash: bcrypt.hashSync(pwd, 10),
-    active: true,
-    created_at: now,
-    updated_at: now,
-  });
+  await users.createIndex({ email: 1 }, { unique: true }).catch(() => {});
+  await users
+    .createIndex({ id: 1 }, { unique: true, sparse: true })
+    .catch(() => {});
 
-  if ((await users.countDocuments({})) === 0) {
-    await users.insertMany([
-      gen("Admin", "admin@peskinpro.id", "admin", "Admin#123"),
-      gen("Cashier", "kasir@peskinpro.id", "cashier", "Cashier#123"),
-      gen("Finance", "finance@peskinpro.id", "finance", "Finance#123"),
-    ]);
-    console.log("Seeded users");
-  }
+  const products = db.collection<Product>("products");
+  await products.createIndex({ sku: 1 }, { unique: true }).catch(() => {});
+  await products
+    .createIndex({ name: "text", sku: "text", barcode: "text" })
+    .catch(() => {});
 }
 
+export async function seedUsers(db: Db) {
+  await ensureIndexes(db);
+
+  const users = db.collection("users");
+  const nowISO = new Date().toISOString();
+  const RESET_PASSWORDS =
+    String(process.env.SEED_RESET_PASSWORDS || "").toLowerCase() === "true";
+
+  const base = (name: string, email: string, role: Role, pwd: string) => {
+    // Hash tiap user di awal supaya bisa dipakai di $setOnInsert / $set sesuai opsi
+    const password_hash = bcrypt.hashSync(pwd, 10);
+    return { name, email, role, password_hash };
+  };
+
+  const seeds = [
+    base("Admin", "admin@peskinpro.id", "admin", "Admin#123"),
+    base("Cashier", "kasir@peskinpro.id", "cashier", "Cashier#123"),
+    base("Finance", "finance@peskinpro.id", "finance", "Finance#123"),
+    base("Windi", "windi@peskinpro.id", "cashier", "Windi#123"),
+    base("Calista", "calista@peskinpro.id", "cashier", "Calista#123"),
+    base("Sinta", "sinta@peskinpro.id", "cashier", "Sinta#123"),
+  ];
+
+  const ops = seeds.map((u) => {
+    // Field yang selalu diupdate:
+    const setDoc: any = {
+      name: u.name,
+      role: u.role,
+      active: true,
+      updated_at: nowISO,
+    };
+
+    // Reset password jika diminta via env:
+    if (RESET_PASSWORDS) {
+      setDoc.password_hash = u.password_hash;
+    }
+
+    return {
+      updateOne: {
+        filter: { email: u.email },
+        update: {
+          $set: setDoc,
+          $setOnInsert: {
+            id: uuid(),
+            email: u.email,
+            password_hash: u.password_hash,
+            created_at: nowISO,
+          },
+        },
+        upsert: true,
+      },
+    };
+  });
+
+  const result = await users.bulkWrite(ops, { ordered: false });
+
+  const inserted = result.upsertedCount || 0;
+  const modified = (result.modifiedCount || 0) + (RESET_PASSWORDS ? 0 : 0);
+  console.log(
+    `✅ Seeded users (idempotent). Inserted: ${inserted}, Updated: ${modified}${
+      RESET_PASSWORDS ? " (passwords reset)" : ""
+    }`
+  );
+}
+
+/**
+ * Seed Products — dibuat idempotent juga (bonus):
+ * - Upsert by sku
+ * - Tidak tergantung countDocuments()
+ * - Boleh di-run berkali-kali
+ */
 export async function seedProducts(db: Db) {
+  await ensureIndexes(db);
+
   const products = db.collection<Product>("products");
-  if ((await products.countDocuments({})) > 0) return;
+  const nowISO = new Date().toISOString();
 
-  const now = new Date();
-
-  // ✅ 1. UPDATE THE HELPER FUNCTION 'P'
-  // Add 'original_price' parameter after 'price'
+  // Helper pembentuk dokumen
   const P = (
     sku: string,
     name: string,
     category: string,
-    price: number, // Sale price (e.g., 144,000)
-    original_price: number | null, // Original/strikethrough price (e.g., 160,000)
+    price: number, // sale price
+    original_price: number | null, // strikethrough price
     stock: number,
     barcode: string
-  ): Product => ({
-    id: uuid(),
+  ) => ({
     sku,
     name,
     category,
     price,
-    original_price, // Add the new field to the object
-    tax_code: null,
+    original_price,
+    tax_code: null as Product["tax_code"],
     barcode,
     is_active: true,
     stock_qty: stock,
-    created_at: now.toISOString(),
-    updated_at: now.toISOString(),
-    image_url: null,
-    images: [],
+    image_url: null as Product["image_url"],
+    images: [] as Product["images"],
   });
 
-  // ✅ 2. UPDATE THE PRODUCT DATA
-  // Pass the sale price (144000) first, then the original price (160000)
-  await products.insertMany([
+  const seeds: Array<ReturnType<typeof P>> = [
     P(
       "T128",
       "CICA-B5 Refreshing Toner - 100ML",
@@ -129,13 +184,40 @@ export async function seedProducts(db: Db) {
       200,
       "8990000000007"
     ),
-  ]);
+  ];
 
-  await products.createIndex?.({ sku: 1 }, { unique: true }).catch(() => {});
-  await products
-    .createIndex?.({ name: "text", sku: "text", barcode: "text" })
-    .catch(() => {});
-  console.log("Seeded products (7 items)");
+  const ops = seeds.map((p) => ({
+    updateOne: {
+      filter: { sku: p.sku },
+      update: {
+        $set: {
+          name: p.name,
+          category: p.category,
+          price: p.price,
+          original_price: p.original_price ?? null,
+          tax_code: p.tax_code ?? null,
+          barcode: p.barcode,
+          is_active: true,
+          stock_qty: p.stock_qty,
+          images: p.images ?? [],
+          image_url: p.image_url ?? null,
+          updated_at: nowISO,
+        },
+        $setOnInsert: {
+          id: uuid(),
+          created_at: nowISO,
+        },
+      },
+      upsert: true,
+    },
+  }));
+
+  const result = await products.bulkWrite(ops, { ordered: false });
+  console.log(
+    `✅ Seeded products (idempotent). Inserted: ${
+      result.upsertedCount || 0
+    }, Updated: ${result.modifiedCount || 0}`
+  );
 }
 
 export async function seedAll(db: Db) {
