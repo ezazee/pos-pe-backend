@@ -97,38 +97,30 @@ export async function seedProducts(db: Db) {
   const products = db.collection<Product>("products");
   const nowISO = new Date().toISOString();
 
-  const now = new Date();
-
-  // ✅ 1. UPDATE THE HELPER FUNCTION 'P'
-  // Add 'original_price' parameter after 'price'
+  // Helper pembentuk dokumen
   const P = (
     sku: string,
     name: string,
     category: string,
-    price: number, // Sale price (e.g., 144,000)
-    original_price: number | null, // Original/strikethrough price (e.g., 160,000)
+    price: number, // sale price
+    original_price: number | null, // strikethrough price
     stock: number,
     barcode: string
-  ): Product => ({
-    id: uuid(),
+  ) => ({
     sku,
     name,
     category,
     price,
-    original_price, // Add the new field to the object
-    tax_code: null,
+    original_price,
+    tax_code: null as Product["tax_code"],
     barcode,
     is_active: true,
     stock_qty: stock,
-    created_at: now.toISOString(),
-    updated_at: now.toISOString(),
-    image_url: null,
-    images: [],
+    image_url: null as Product["image_url"],
+    images: [] as Product["images"],
   });
 
-  // ✅ 2. UPDATE THE PRODUCT DATA
-  // Pass the sale price (144000) first, then the original price (160000)
-  await products.insertMany([
+  const seeds: Array<ReturnType<typeof P>> = [
     P(
       "T128",
       "CICA-B5 Refreshing Toner - 100ML",
@@ -192,13 +184,40 @@ export async function seedProducts(db: Db) {
       200,
       "8990000000007"
     ),
-  ]);
+  ];
 
-  await products.createIndex?.({ sku: 1 }, { unique: true }).catch(() => {});
-  await products
-    .createIndex?.({ name: "text", sku: "text", barcode: "text" })
-    .catch(() => {});
-  console.log("Seeded products (7 items)");
+  const ops = seeds.map((p) => ({
+    updateOne: {
+      filter: { sku: p.sku },
+      update: {
+        $set: {
+          name: p.name,
+          category: p.category,
+          price: p.price,
+          original_price: p.original_price ?? null,
+          tax_code: p.tax_code ?? null,
+          barcode: p.barcode,
+          is_active: true,
+          stock_qty: p.stock_qty,
+          images: p.images ?? [],
+          image_url: p.image_url ?? null,
+          updated_at: nowISO,
+        },
+        $setOnInsert: {
+          id: uuid(),
+          created_at: nowISO,
+        },
+      },
+      upsert: true,
+    },
+  }));
+
+  const result = await products.bulkWrite(ops, { ordered: false });
+  console.log(
+    `✅ Seeded products (idempotent). Inserted: ${
+      result.upsertedCount || 0
+    }, Updated: ${result.modifiedCount || 0}`
+  );
 }
 
 export async function seedAll(db: Db) {
