@@ -26,6 +26,8 @@ export interface Product {
   updated_at: string; // ISO
   image_url?: string | null;
   images?: string[];   
+    bulk_pricing?: { qty: number; total: number }[];
+  bundle_code?: string | null;   // 👉 group promo mix & match
 }
 
 export interface SaleItem {
